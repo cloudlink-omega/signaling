@@ -3,7 +3,7 @@
 Provides WebRTC Signaling & a server-side message relay. A core service for providing CL5 connectivity.
 
 # Requirements
-* Go 1.23 or newer
+* Go 1.23.1 or newer
 
 # Usage
 The signaling server is a standard Fiber v2 app, and can be natively mounted.
