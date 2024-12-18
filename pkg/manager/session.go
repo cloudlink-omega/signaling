@@ -3,7 +3,7 @@ package manager
 import (
 	"fmt"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // GetSession retrieves the session associated with the given ID from the server.

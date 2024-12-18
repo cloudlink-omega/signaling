@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"log"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/manager"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/peer"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/signaling/message"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/manager"
+	"github.com/cloudlink-omega/signaling/pkg/peer"
+	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // Handles the ICE opcode. This function takes a client,

@@ -3,7 +3,7 @@ package manager
 import (
 	"sync"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // get_lobby is a internal helper function that retrieves a lobby from a server.

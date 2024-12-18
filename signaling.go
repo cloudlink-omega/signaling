@@ -4,7 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	srv "git.mikedev101.cc/MikeDEV/signaling/pkg/signaling"
+	srv "github.com/cloudlink-omega/signaling/pkg/signaling"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 )

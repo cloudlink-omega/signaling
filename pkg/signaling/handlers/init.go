@@ -3,8 +3,8 @@ package handlers
 import (
 	"log"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/signaling/message"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // INIT handles the INIT opcode, which is used to initialize a new connection to the signaling server.

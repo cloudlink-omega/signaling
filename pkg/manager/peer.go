@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // WithoutPeer returns a slice of all elements in the given slice of clients that are

@@ -1,4 +1,4 @@
-module git.mikedev101.cc/MikeDEV/signaling
+module github.com/cloudlink-omega/signaling
 
 go 1.23.1
 

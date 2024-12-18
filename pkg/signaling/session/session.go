@@ -4,9 +4,9 @@ import (
 	"log"
 	"sync"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/manager"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/signaling/message"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/manager"
+	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/oklog/ulid/v2"
 )

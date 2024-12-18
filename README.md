@@ -12,7 +12,7 @@ package main
 
 import (
     "github.com/gofiber/fiber/v2"
-    "git.mikedev101.cc/MikeDEV/signaling"
+    "github.com/cloudlink-omega/signaling"
 )
 
 func main() {

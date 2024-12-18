@@ -3,7 +3,7 @@ package message
 import (
 	"log"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 )

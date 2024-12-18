@@ -3,10 +3,10 @@ package handlers
 import (
 	"log"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/manager"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/peer"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/signaling/message"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/manager"
+	"github.com/cloudlink-omega/signaling/pkg/peer"
+	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/goccy/go-json"
 )
 

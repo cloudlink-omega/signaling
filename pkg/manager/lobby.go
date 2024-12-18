@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 // GetAllLobbies retrieves all lobbies for a given game, excluding the default lobby entry.

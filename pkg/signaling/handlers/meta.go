@@ -4,9 +4,9 @@ import (
 	"log"
 	"runtime"
 
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/constants"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/signaling/message"
-	"git.mikedev101.cc/MikeDEV/signaling/pkg/structs"
+	"github.com/cloudlink-omega/signaling/pkg/constants"
+	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
+	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
 
 type MetadataPacket struct {
