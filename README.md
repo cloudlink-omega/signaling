@@ -38,11 +38,3 @@ func main() {
 }
 ```
 
-# Module import notice
-When importing this code in another package, `go mod tidy` might not work nicely. Use `GOPRIVATE`.
-
-## Bash (Linux or macOS)
-`export GOPRIVATE=git.mikedev101.cc`
-
-## PowerShell (Windows)
-`$env:GOPRIVATE = "git.mikedev101.cc"`
