@@ -96,6 +96,7 @@ type RelayPacket struct {
 	Payload   any       `json:"payload,omitempty" validate:"omitempty,omitnil,required" label:"payload"` // Required for protocol compliance
 	Origin    *PeerInfo `json:"origin,omitempty" validate:"omitempty,omitnil" label:"origin"`            // Relay -> Peer, identifies client that sent the message
 	Recipient string    `json:"recipient,omitempty" validate:"omitempty,omitnil" label:"recipient"`      // Peer -> Relay, identifies client that should receive the message
+	Channel   string    `json:"channel,omitempty" validate:"omitempty,omitnil" label:"channel"`          // Used to specify what channel the relayed packet belongs to
 }
 
 // As per CL5 spec, there are two kinds of candidates - data and voice.

@@ -80,5 +80,8 @@ func VerifyRelayState(r *structs.Relay, packet *structs.RelayPacket) error {
 	if !IsClientInLobby(r.Server, r.Lobby, r.UGI.String(), peer) {
 		return fmt.Errorf("recipient peer is not in the same lobby")
 	}
+	if packet.Channel == "" {
+		return fmt.Errorf("no channel specified")
+	}
 	return nil
 }

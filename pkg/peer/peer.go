@@ -242,6 +242,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "G_MSG",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
@@ -257,6 +258,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "G_VAR",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
@@ -272,6 +274,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "G_LIST",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
@@ -290,6 +293,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "P_MSG",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
@@ -308,6 +312,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "P_VAR",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
@@ -326,6 +331,7 @@ func protocolhandler(r *structs.Relay, channel string, rawpacket string) {
 			&structs.RelayPacket{
 				Opcode:  "P_LIST",
 				Payload: packet.Payload,
+				Channel: packet.Channel,
 				Origin: &structs.PeerInfo{
 					ID:   r.Peer.ULID.String(),
 					User: r.Peer.Username,
