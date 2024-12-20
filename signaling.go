@@ -18,7 +18,15 @@ type SignalingServer struct {
 // TURN only setting. The returned SignalingServer object contains the
 // underlying structs.Server and a func that can be used to mount the
 // WebSocket handler on a fiber.Router.
-func New(Authorized_Origins []string, TURN_Only bool) *SignalingServer {
+func New(
+
+	// Authorized Origins is a list of origins that are allowed to connect to the signaling server.
+	Authorized_Origins []string,
+
+	// TURN Only is a boolean that determines if the signaling server should only be used for TURN.
+	TURN_Only bool,
+
+) *SignalingServer {
 	s := srv.Initialize(Authorized_Origins, TURN_Only)
 	srv := &SignalingServer{Server: s}
 
