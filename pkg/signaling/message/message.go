@@ -7,7 +7,7 @@ import (
 	"github.com/goccy/go-json"
 )
 
-func WriteMessage(c *structs.Client, wsMsg structs.Packet) {
+func Send(c *structs.Client, wsMsg structs.Packet) {
 	if c == nil {
 		return
 	}
@@ -16,7 +16,7 @@ func WriteMessage(c *structs.Client, wsMsg structs.Packet) {
 	c.Conn.WriteJSON(wsMsg)
 }
 
-func ReadMessage(c *structs.Client) (structs.Packet, error) {
+func Read(c *structs.Client) (structs.Packet, error) {
 	_, raw, err := c.Conn.ReadMessage()
 	if err != nil {
 		log.Println("Client read error:", err)
@@ -31,8 +31,8 @@ func ReadMessage(c *structs.Client) (structs.Packet, error) {
 	return clientMsg, nil
 }
 
-func BroadcastMessage(peers []*structs.Client, wsMsg structs.Packet) {
+func Broadcast(peers []*structs.Client, wsMsg structs.Packet) {
 	for _, peer := range peers {
-		WriteMessage(peer, wsMsg)
+		Send(peer, wsMsg)
 	}
 }
