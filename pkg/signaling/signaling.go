@@ -1,19 +1,21 @@
 package signaling
 
 import (
+	"crypto/rand"
+
 	"log"
 	"sync"
+	"time"
 
 	"github.com/cloudlink-omega/signaling/pkg/signaling/handlers"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/origin"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/session"
 	"github.com/cloudlink-omega/signaling/pkg/structs"
-	"github.com/go-playground/validator/v10"
-	"github.com/goccy/go-json"
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/oklog/ulid/v2"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -22,14 +24,11 @@ type Server structs.Server
 func Initialize(allowedorigins []string, turnonly bool) *Server {
 	s := &Server{
 		AuthorizedOriginsStorage: origin.CompilePatterns(allowedorigins),
-		Mux:                      &sync.RWMutex{},
 		TURNOnly:                 turnonly,
-		Games:                    &structs.GameStore{Mutex: sync.RWMutex{}, Games: make(map[string]*structs.Game)},
-		Sessions:                 &structs.SessionStore{Mutex: sync.RWMutex{}, Sessions: make(map[string]*structs.Session)},
-		Relays:                   make(map[*structs.Client]*structs.Relay),
-		RelayLock:                &sync.RWMutex{},
-		PacketValidator:          validator.New(validator.WithRequiredStructEnabled()),
-		WebsocketConnCounter:     0,
+		Lock:                     &sync.RWMutex{},
+		Relays:                   make(map[string]map[string]*structs.Relay),
+		Lobbies:                  make(map[string]map[string]*structs.Lobby),
+		UninitializedPeers:       make(map[string][]*structs.Client),
 	}
 
 	if turnonly {
@@ -39,8 +38,23 @@ func Initialize(allowedorigins []string, turnonly bool) *Server {
 	return s
 }
 
+func RunClient(state *Server, c *structs.Client) {
+	for {
+		clientMsg, err := message.Read(c)
+		if err != nil {
+			log.Printf("WARNING: Client %s read error: %s", c.ID, err.Error())
+			return
+		}
+		HandleMessage(state, c, clientMsg)
+	}
+}
+
+func CloseClient(state *Server, c *structs.Client) {
+	session.UpdateState((*structs.Server)(state), nil, c, -1)
+}
+
 // AuthorizedOrigins implements the CheckOrigin method of the websocket.Upgrader.
-// This checks if the incoming request's origin is allowed to connect to the server.
+// This checks if the incoming request's origin is allowed to Connect to the server.
 // The server will log if the origin is permitted or rejected.
 func (s *Server) AuthorizedOrigins(r *fasthttp.Request) bool {
 	log.Printf("Origin: %s, Host: %s", r.Header.Peek("Origin"), r.Host())
@@ -50,9 +64,9 @@ func (s *Server) AuthorizedOrigins(r *fasthttp.Request) bool {
 
 	// Logging
 	if result {
-		log.Print("Origin permitted to connect")
+		log.Print("Origin permitted to Connect")
 	} else {
-		log.Print("Origin was rejected during connect")
+		log.Print("Origin was rejected during Connect")
 	}
 
 	// TODO: cache the result to speed up future checks
@@ -64,17 +78,21 @@ func (s *Server) AuthorizedOrigins(r *fasthttp.Request) bool {
 // Upgrader checks if the client requested a websocket upgrade, and if so,
 // sets a local variable to true. If the client did not request a websocket
 // upgrade, this middleware will return ErrUpgradeRequired. If the client
-// is not allowed to connect, this middleware will return ErrForbidden. If
+// is not allowed to Connect, this middleware will return ErrForbidden. If
 // the client does not provide a UGI, this middleware will return ErrBadRequest.
 func (s *Server) Upgrader(c *fiber.Ctx) error {
 
 	// Check if UGI is provided
 	if c.Query("ugi") == "" {
-		return fiber.ErrBadRequest
+		var message = fiber.ErrBadRequest
+		message.Message = "You attempted to access a WebSocket endpoint as a normal HTTP(s) request. Try using a WebSocket client or the CL5 extension."
+		return message
 	}
 
 	if !s.AuthorizedOrigins(c.Request()) {
-		return fiber.ErrForbidden
+		var message = fiber.ErrForbidden
+		message.Message = "This origin is not permitted to connect to this endpoint. Please contact the server administrator."
+		return message
 	}
 
 	// IsWebSocketUpgrade returns true if the client
@@ -84,164 +102,76 @@ func (s *Server) Upgrader(c *fiber.Ctx) error {
 		return c.Next()
 	}
 
-	return fiber.ErrUpgradeRequired
+	var message = fiber.ErrUpgradeRequired
+	message.Message = "This endpoint requires a WebSocket upgrade. Please use a WebSocket client or the CL5 extension."
+	return message
 }
 
-// Handler is an HTTP handler that handles WebSocket connections and relays messages.
+func RegisterClient(state *Server, c *structs.Client) {
+	state.Lock.Lock()
+
+	if state.UninitializedPeers[c.GameID] == nil {
+		log.Printf("Game ID %s uninitialized peers storage has been created", c.GameID)
+		state.UninitializedPeers[c.GameID] = make([]*structs.Client, 0)
+	}
+
+	state.UninitializedPeers[c.GameID] = append(state.UninitializedPeers[c.GameID], c)
+	state.Lock.Unlock()
+}
+
+// Handler is an HTTP handler that handles WebSocket Connections and relays messages.
 //
-// Given an HTTP request, this function will upgrade the connection to a WebSocket connection
+// Given an HTTP request, this function will upgrade the Connection to a WebSocket Connection
 // and start a new client session. The function will then read all incoming messages, decode
 // them, validate them, and handle them accordingly.
-func (srv *Server) Handler(conn *websocket.Conn) {
-	// Cast server
-	s := (*structs.Server)(srv)
+func (s *Server) Handler(Conn *websocket.Conn) {
 
-	// Validate UGI
-	ugi, err := ulid.Parse(conn.Query("ugi"))
-	if err != nil {
+	client := &structs.Client{
+		Conn:            Conn,
+		ID:              ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader).String(),
+		Token:           Conn.Query("token"),
+		TokenWasPresent: Conn.Query("token") != "",
+		Lock:            &sync.Mutex{},
+		State:           0,
+		TransmitLock:    &sync.Mutex{},
+		GameID:          Conn.Query("ugi"),
+	}
 
-		// Tell the client that the UGI is bad.
-		if err := conn.WriteJSON(&structs.SignalPacket{
-			Opcode:  "VIOLATION",
-			Payload: "Unique Game Identifier (UGI) invalid or malformed",
-		}); err != nil {
-			log.Printf("Handle bad UGI error: %s", err.Error())
-		}
-
-		// Close the connection
-		conn.Close()
+	if Conn.Query("ugi") == "" {
+		session.CloseWithViolationMessage(client, "no UGI provided")
 		return
 	}
 
-	// Start session
-	client := session.Open(s, conn, ugi)
-
-	// Handle messages and close handler when disconnected
-	defer session.Close(s, client)
-	for {
-
-		// Read packet
-		_, rawpacket, err := conn.ReadMessage()
-		if err != nil {
-			if !(websocket.IsCloseError(err) || websocket.IsUnexpectedCloseError(err)) {
-				log.Fatalf("WebSocket unhandled receive error: %s\n", err)
-			}
-			return
-		}
-
-		// Decode packet
-		var packet *structs.SignalPacket
-		if err := json.Unmarshal(rawpacket, &packet); err != nil {
-			conn.WriteJSON(&structs.SignalPacket{
-				Opcode:  "VIOLATION",
-				Payload: "Packet decoding error",
-			})
-			return
-		}
-
-		// Validate the packet
-		if err := s.PacketValidator.Struct(packet); err != nil {
-			conn.WriteJSON(&structs.SignalPacket{
-				Opcode:  "VIOLATION",
-				Payload: err.Error(),
-			})
-			return
-		}
-
-		// Allow for concurrent packet processing
-		go execute_packet(s, client, packet, rawpacket)
-	}
+	RegisterClient(s, client)
+	defer CloseClient(s, client)
+	RunClient(s, client)
 }
 
-func execute_packet(s *structs.Server, client *structs.Client, packet *structs.SignalPacket, rawpacket []byte) {
-	// Handle opcodes accordingly.
-	switch packet.Opcode {
+func HandleMessage(state *Server, c *structs.Client, wsMsg structs.Packet) {
+	switch wsMsg.Opcode {
 
-	// Keep connection alive
 	case "KEEPALIVE":
-		message.Code(
-			client,
-			"KEEPALIVE",
-			packet.Payload,
-			packet.Listener,
-			nil,
-		)
+		handlers.Keepalive((*structs.Server)(state), c)
 
-	// Initializes the session.
 	case "INIT":
-		handlers.INIT(s, client, packet)
+		handlers.Init((*structs.Server)(state), c, wsMsg)
 
-	// Shares metadata about the client, and returns metadata about the server.
-	case "META":
-		handlers.META(s, client, packet)
+	case "LIST_LOBBIES":
+		handlers.List_Lobbies((*structs.Server)(state), c)
 
-	// Makes the peer a lobby host.
-	case "CONFIG_HOST":
-		handlers.CONFIG_HOST(s, client, rawpacket, packet.Listener)
+	case "FIND_LOBBY":
+		handlers.Find_Lobby((*structs.Server)(state), c, wsMsg)
 
-	// Makes the peer a lobby member.
-	case "CONFIG_PEER":
-		handlers.CONFIG_PEER(s, client, rawpacket, packet.Listener)
+	case "CREATE_LOBBY":
+		handlers.Create_Lobby((*structs.Server)(state), c, wsMsg)
 
-	// Relays SDP offer data.
-	case "MAKE_OFFER":
-		handlers.MAKE_OFFER(s, client, packet, rawpacket)
+	case "JOIN_LOBBY":
+		handlers.Join_Lobby((*structs.Server)(state), c, wsMsg)
 
-	// Relays SDP answer data.
-	case "MAKE_ANSWER":
-		handlers.MAKE_ANSWER(s, client, packet, rawpacket)
-
-	// Relays SDP ICE data.
-	case "ICE":
-		handlers.ICE(s, client, packet, rawpacket)
-
-	// Provides a list of all open lobbies to join.
-	case "LOBBY_LIST":
-		handlers.LOBBY_LIST(s, client, packet)
-
-	// Provides information about a lobby.
-	case "LOBBY_INFO":
-		handlers.LOBBY_INFO(s, client, packet)
-
-	// Prevents new peers from joining a lobby.
-	case "LOCK":
-		handlers.LOCK(s, client, packet)
-
-	// Permits new peers to join a lobby.
-	case "UNLOCK":
-		handlers.UNLOCK(s, client, packet)
-
-	// Modifies the maximum number of peers allowed in a lobby.
-	case "SIZE":
-		handlers.SIZE(s, client, packet)
-
-	case "TRANSITION_ACK":
-		client.TransitionDone <- true
-
-	// Kicks a peer from a lobby.
-	case "KICK":
-		return
-
-	// Allows a peer to initialize a voice call (fix for timing bug)
-	case "DIAL":
-		return
-
-	// Allows a peer to decline an incoming voice call.
-	case "DECLINE":
-		return
-
-	// Allows a peer to accept an incoming voice call.
-	case "ACCEPT":
-		return
+	case "MANAGE_LOBBY":
+		handlers.Manage_Lobby((*structs.Server)(state), c, wsMsg)
 
 	default:
-		message.Code(
-			client,
-			"VIOLATION",
-			"Unknown opcode",
-			packet.Listener,
-			nil,
-		)
-		return
+		message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "unknown or unimplemented opcode"})
 	}
 }

@@ -5,33 +5,34 @@ import (
 
 	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/goccy/go-json"
-	"github.com/gofiber/contrib/websocket"
 )
 
-func Send(client *structs.Client, message interface{}) error {
-	if client == nil {
-		log.Printf("Got a nil client when sending message: %v", message)
-		return nil
+func Send(c *structs.Client, wsMsg structs.Packet) {
+	if c == nil {
+		return
 	}
+	c.TransmitLock.Lock()
+	defer c.TransmitLock.Unlock()
+	c.Conn.WriteJSON(wsMsg)
+}
 
-	// Marshal the message using go-json instead of interface/json
-	bytes, err := json.Marshal(message)
+func Read(c *structs.Client) (structs.Packet, error) {
+	_, raw, err := c.Conn.ReadMessage()
 	if err != nil {
-		return err
+		log.Println("Client read error:", err)
+		return structs.Packet{}, err
 	}
 
-	// Send the message
-	client.Mux.Lock()
-	defer client.Mux.Unlock()
-	return client.Conn.WriteMessage(websocket.TextMessage, bytes)
+	var clientMsg structs.Packet
+	if err := json.Unmarshal(raw, &clientMsg); err != nil {
+		log.Println("Invalid message format")
+		return structs.Packet{}, err
+	}
+	return clientMsg, nil
 }
 
-func Code(client *structs.Client, code string, message interface{}, listener string, origin *structs.PeerInfo) error {
-	return Send(client, &structs.SignalPacket{Opcode: code, Payload: message, Listener: listener, Origin: origin})
-}
-
-func Broadcast(clients []*structs.Client, message interface{}) {
-	for _, client := range clients {
-		Send(client, message)
+func Broadcast(peers []*structs.Client, wsMsg structs.Packet) {
+	for _, peer := range peers {
+		Send(peer, wsMsg)
 	}
 }
