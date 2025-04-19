@@ -27,21 +27,24 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 		return
 	}
 
-	// Require read lock to check token
-	if !c.TokenWasPresent {
-		c.Token = args.Token
-	}
-	if !session.ValidateToken(c.Token) {
-		session.CloseWithViolationMessage(c, "unauthorized")
-		return
+	if !c.AuthedWithCookie {
+		if !c.TokenWasPresent {
+			c.Token = args.Token
+		}
+		if !session.ValidateToken(c.Token) {
+			session.CloseWithViolationMessage(c, "unauthorized")
+			return
+		}
 	}
 
 	// Require write lock to set valid
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	c.Valid = true
-	c.Name = args.Username
 	c.PublicKey = args.PublicKey
+	if !c.AuthedWithCookie {
+		c.Name = args.Username
+	}
 
 	// Create game storage if it doesn't exist
 	if state.Lobbies[c.GameID] == nil {
