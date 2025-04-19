@@ -28,6 +28,7 @@ func Read(c *structs.Client) (structs.Packet, error) {
 		log.Println("Invalid message format")
 		return structs.Packet{}, err
 	}
+
 	return clientMsg, nil
 }
 

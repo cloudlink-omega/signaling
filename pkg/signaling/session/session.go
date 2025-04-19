@@ -10,7 +10,30 @@ import (
 	"github.com/gofiber/contrib/websocket"
 )
 
-func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client, newstate int8) {
+func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
+	log.Println("Destroy Lobby was called!")
+
+	if lobby != nil && c.LastState == 1 && lobby.Host == nil && len(lobby.Clients) == 0 {
+		if lobby.RelayEnabled {
+			state.Relays[c.GameID][lobby.Name].Close <- true
+			<-state.Relays[c.GameID][lobby.Name].CloseDone
+			log.Printf("Game ID %s lobby %s relay has been destroyed", c.GameID, lobby.Name)
+			delete(state.Relays[c.GameID], lobby.Name)
+		}
+
+		delete(state.Lobbies[c.GameID], lobby.Name)
+		log.Printf("Lobby %s has been destroyed", lobby.Name)
+
+		message.Broadcast(state.UninitializedPeers[c.GameID], structs.Packet{Opcode: "LOBBY_CLOSED", Payload: lobby.Name})
+
+		ShowStatus(state, lobby, c)
+	} else {
+		log.Println("Destroy Lobby had not effect!")
+	}
+}
+
+func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client, newstate int8, is_transitional ...bool) {
+	log.Printf("%s %d -> %d\n", c.ID, c.State, newstate)
 
 	// Add to new state with lock. Both locks MUST be acquired and released at the same time!
 	state.Lock.Lock()
@@ -45,7 +68,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 		// The client was a host and the server needs to pick a new host
 		case 1:
 			if lobby != nil {
-				if len(lobby.Clients) >= 1 {
+				if len(lobby.Clients) > 0 {
 
 					// Pick the next host
 					newHost := lobby.Clients[0]
@@ -59,8 +82,13 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 						PublicKey: newHost.PublicKey,
 						Username:  newHost.Name,
 					}})
+
 				} else {
-					log.Printf("Lobby %s has no more members, it will be destroyed", lobby.Name)
+					log.Printf("Lobby %s has no members.\n", lobby.Name)
+				}
+
+				if lobby.Host == c && (newstate == -1 || newstate == 0) {
+					log.Printf("Lobby %s host has been cleared since %s was the host\n", lobby.Name, c.ID)
 					lobby.Host = nil
 				}
 			}
@@ -98,26 +126,17 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 
 				// Does nothing if there are no peers
 				message.Broadcast(Without(And(lobby.Clients, lobby.Host), c), structs.Packet{Opcode: "PEER_LEFT", Payload: c.ID})
-
-				// Destroy the lobby if it's empty
-				if c.LastState == 1 && lobby.Host == nil && len(lobby.Clients) == 0 {
-					delete(state.Lobbies[c.GameID], lobby.Name)
-					log.Printf("Lobby %s has been destroyed", lobby.Name)
-
-					if lobby.RelayEnabled {
-						state.Relays[c.GameID][lobby.Name].Close <- true
-						<-state.Relays[c.GameID][lobby.Name].CloseDone
-						log.Printf("Game ID %s lobby %s relay has been destroyed", c.GameID, c.Lobby)
-						delete(state.Relays[c.GameID], lobby.Name)
-					}
-
-					message.Broadcast(state.UninitializedPeers[c.GameID], structs.Packet{Opcode: "LOBBY_CLOSED", Payload: lobby.Name})
-				}
 			}
 
 		// Client is now uninitialized
 		case 0:
 			state.UninitializedPeers[c.GameID] = And(state.UninitializedPeers[c.GameID], c)
+			c.Lobby = ""
+			message.Send(c, structs.Packet{Opcode: "TRANSITION", Payload: ""})
+
+			if c.LastState == 1 {
+				DestroyLobby(state, lobby, c)
+			}
 
 		// Client needs to become a host
 		case 1:
@@ -143,16 +162,35 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 			message.Send(c, structs.Packet{Opcode: "TRANSITION", Payload: "peer"})
 		}
 
-		// Destroy all game storage if there are no lobbies
-		log.Printf("Game ID %s has %d lobbies, %d uninitialized peers, and %d relays", c.GameID, len(state.Lobbies[c.GameID]), len(state.UninitializedPeers[c.GameID]), len(state.Relays[c.GameID]))
-		if (len(state.UninitializedPeers[c.GameID]) == 0) && (len(state.Lobbies[c.GameID]) == 0) && (len(state.Relays[c.GameID]) == 0) {
-			log.Printf("All Game ID %s storage has been destroyed due to no lobbies, relays, or uninitialized peers", c.GameID)
-			delete(state.Lobbies, c.GameID)
-			delete(state.UninitializedPeers, c.GameID)
-			delete(state.Relays, c.GameID)
-		}
-
+		// Perform cleanup duties
+		TriggerCleanup(state, lobby, c)
 	}(c, state)
+}
+
+func TriggerCleanup(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
+	ShowStatus(state, lobby, c)
+
+	if (lobby != nil) &&
+		(len(state.UninitializedPeers[c.GameID]) == 0) &&
+		(len(state.Lobbies[c.GameID]) == 0) &&
+		(len(state.Relays[c.GameID]) == 0) {
+
+		log.Printf("All Game ID %s storage has been destroyed due the host being nil, having no lobbies, relays, or uninitialized peers", c.GameID)
+		delete(state.Lobbies, c.GameID)
+		delete(state.UninitializedPeers, c.GameID)
+		delete(state.Relays, c.GameID)
+
+		ShowStatus(state, lobby, c)
+	}
+}
+
+func ShowStatus(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
+	log.Printf("Game ID %s has %d lobbies", c.GameID, len(state.Lobbies[c.GameID]))
+	log.Printf("Game ID %s has %d uninitialized peers", c.GameID, len(state.UninitializedPeers[c.GameID]))
+	log.Printf("Game ID %s has %d relays", c.GameID, len(state.Relays[c.GameID]))
+	if lobby != nil {
+		log.Printf("Game %s lobby %s has %d clients", c.GameID, lobby.Name, len(state.Lobbies[c.GameID][lobby.Name].Clients))
+	}
 }
 
 func ValidateToken(token string) bool {
@@ -161,13 +199,18 @@ func ValidateToken(token string) bool {
 }
 
 func CloseWithViolationMessage(c *structs.Client, message string) {
-	c.Conn.WriteJSON(structs.Packet{Opcode: "VIOLATION", Payload: message})
+	packet := structs.Packet{Opcode: "VIOLATION", Payload: message}
+	log.Println(packet)
+
+	c.Conn.WriteJSON(packet)
 	c.Conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, message), time.Now().Add(time.Second))
 	c.Conn.Close()
 }
 
 func CloseWithWarningMessage(c *structs.Client, message string) {
-	c.Conn.WriteJSON(structs.Packet{Opcode: "WARNING", Payload: message})
+	packet := structs.Packet{Opcode: "WARNING", Payload: message}
+	log.Println(packet)
+	c.Conn.WriteJSON(packet)
 	c.Conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseGoingAway, message), time.Now().Add(time.Second))
 	c.Conn.Close()
 }

@@ -12,6 +12,9 @@ import (
 )
 
 func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
+
+	log.Println("$s $s $s", c.ID, c.GameID, wsMsg)
+
 	if !c.Valid {
 		message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "unauthorized"})
 		return
@@ -30,7 +33,8 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 	}
 
 	// Check if the lobby already exists
-	if state.Lobbies[args.Name] != nil {
+	if state.Lobbies[c.GameID][args.Name] != nil {
+		log.Printf("Lobby %s already exists", args.Name)
 		message.Send(c, structs.Packet{Opcode: "CREATE_ACK", Payload: "exists"})
 		return
 	}
@@ -52,7 +56,11 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 	message.Send(c, structs.Packet{Opcode: "CREATE_ACK", Payload: "ok"})
 
 	// Just tell the client that they are the host
-	message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: c.ID})
+	message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
+		UserID:    c.ID,
+		PublicKey: c.PublicKey,
+		Username:  c.Name,
+	}})
 
 	// Tell other peers about the new lobby
 	message.Broadcast(state.UninitializedPeers[c.GameID], structs.Packet{Opcode: "NEW_LOBBY", Payload: args.Name})
