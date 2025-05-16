@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/session"
@@ -127,12 +128,12 @@ func Manage_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 			// Update the host's state to be a peer
 			message.Send(c, structs.Packet{Opcode: "TRANSITION", Payload: "peer"})
-			log.Printf("Peer %s was in state %d and will become state 2\n", c.ID, c.State)
+			log.Debugf("Peer %s was in state %d and will become state 2\n", c.ID, c.State)
 			c.State = 2
 			lobby.Clients = session.And(lobby.Clients, c)
 
 			// Update state
-			log.Printf("Peer %s was in state %d and will become state 1\n", newHost.ID, newHost.State)
+			log.Debugf("Peer %s was in state %d and will become state 1\n", newHost.ID, newHost.State)
 			newHost.State = 1
 			lobby.Host = newHost
 			lobby.Clients = session.Without(lobby.Clients, newHost)

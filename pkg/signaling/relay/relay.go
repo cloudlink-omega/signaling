@@ -4,8 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/structs"
 	peer "github.com/muka/peerjs-go"
@@ -35,7 +36,7 @@ func SpawnRelay(c *structs.Client, state *structs.Server, lobby_name string) (*s
 	relayid := ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader).String()
 	relayPeer, err := peer.NewPeer(relayid, config)
 	if err != nil {
-		log.Printf("Failed to create relay peer: %s", err)
+		log.Errorf("Failed to create relay peer: %s", err)
 		state.Lobbies[c.GameID][lobby_name].RelayEnabled = false
 		return nil, err
 	}
@@ -48,16 +49,16 @@ func SpawnRelay(c *structs.Client, state *structs.Server, lobby_name string) (*s
 	}
 
 	if state.Relays[c.GameID] == nil {
-		log.Printf("Game %s relay storage has been created\n", c.GameID)
+		log.Infof("Game %s relay storage has been created\n", c.GameID)
 		state.Relays[c.GameID] = make(map[string]*structs.Relay)
 	}
 
 	if state.Relays[c.GameID][lobby_name] == nil {
-		log.Printf("Game %s lobby %s relay storage has been created\n", c.GameID, lobby_name)
+		log.Infof("Game %s lobby %s relay storage has been created\n", c.GameID, lobby_name)
 		state.Relays[c.GameID][lobby_name] = relayObj
 	}
 
-	log.Printf("Created relay peer %s for game %s lobby %s", relayid, c.GameID, lobby_name)
+	log.Infof("Created relay peer %s for game %s lobby %s", relayid, c.GameID, lobby_name)
 
 	go HandleRelay(state, relayObj)
 	return relayObj, nil
@@ -71,7 +72,7 @@ func HandleRelay(_ *structs.Server, r *structs.Relay) {
 		Conn := data.(*peer.DataConnection)
 
 		Conn.On("open", func(data any) {
-			log.Printf("Peer %s Connected to relay %s", Conn.GetPeerID(), r.Id)
+			log.Debugf("Peer %s Connected to relay %s", Conn.GetPeerID(), r.Id)
 		})
 
 		Conn.On("data", func(data any) {
@@ -81,17 +82,17 @@ func HandleRelay(_ *structs.Server, r *structs.Relay) {
 			// Trim (UTF-16) header???
 			byteStream = byteStream[3:]
 
-			log.Printf("Received data from peer %s in relay %s: %s\n", Conn.GetPeerID(), r.Id, byteStream)
+			log.Debugf("Received data from peer %s in relay %s: %s\n", Conn.GetPeerID(), r.Id, byteStream)
 
 			packet := structs.Packet{}
 			err := json.Unmarshal(fmt.Appendf(nil, "%s", byteStream), &packet)
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 				return
 			}
 
 			// TODO: handle relay messages
-			log.Print("Packet: ", packet)
+			log.Debugf("Packet: ", packet)
 			switch packet.Opcode {
 			case "G_MSG":
 				break
@@ -109,23 +110,23 @@ func HandleRelay(_ *structs.Server, r *structs.Relay) {
 		})
 
 		Conn.On("close", func(data any) {
-			log.Printf("Peer %s disconnected from relay %s", Conn.GetPeerID(), r.Id)
+			log.Debugf("Peer %s disconnected from relay %s", Conn.GetPeerID(), r.Id)
 		})
 
 		Conn.On("error", func(data any) {
-			log.Printf("Peer %s error in relay %s: %v", Conn.GetPeerID(), r.Id, data)
+			log.Debugf("Peer %s error in relay %s: %v", Conn.GetPeerID(), r.Id, data)
 		})
 	})
 
 	p.On("error", func(data any) {
-		log.Printf("Relay %s peer error: %v", r.Id, data)
+		log.Debugf("Relay %s peer error: %v", r.Id, data)
 	})
 
 	p.On("close", func(data any) {
-		log.Printf("Relay peer %s closed", r.Id)
+		log.Infof("Relay peer %s closed", r.Id)
 	})
 
 	<-r.Close
-	log.Printf("Relay peer %s got close signal", r.Id)
+	log.Infof("Relay peer %s got close signal", r.Id)
 	r.CloseDone <- true
 }

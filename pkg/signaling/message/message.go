@@ -1,7 +1,7 @@
 package message
 
 import (
-	"log"
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/goccy/go-json"
@@ -19,13 +19,13 @@ func Send(c *structs.Client, wsMsg structs.Packet) {
 func Read(c *structs.Client) (structs.Packet, error) {
 	_, raw, err := c.Conn.ReadMessage()
 	if err != nil {
-		log.Println("Client read error:", err)
+		log.Errorf("Client read error:", err)
 		return structs.Packet{}, err
 	}
 
 	var clientMsg structs.Packet
 	if err := json.Unmarshal(raw, &clientMsg); err != nil {
-		log.Println("Invalid message format")
+		log.Errorf("Invalid message format")
 		return structs.Packet{}, err
 	}
 

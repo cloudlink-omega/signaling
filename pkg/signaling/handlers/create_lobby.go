@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
+
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/relay"
@@ -13,7 +14,7 @@ import (
 
 func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 
-	log.Println("$s $s $s", c.ID, c.GameID, wsMsg)
+	log.Debugf("$s $s $s", c.ID, c.GameID, wsMsg)
 
 	if !c.Valid {
 		message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "unauthorized"})
@@ -34,7 +35,7 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 	// Check if the lobby already exists
 	if state.Lobbies[c.GameID][args.Name] != nil {
-		log.Printf("Lobby %s already exists", args.Name)
+		log.Infof("Lobby %s already exists", args.Name)
 		message.Send(c, structs.Packet{Opcode: "CREATE_ACK", Payload: "exists"})
 		return
 	}
@@ -49,7 +50,7 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 		RelayEnabled: args.EnableRelay,
 		Clients:      make([]*structs.Client, 0),
 	}
-	log.Printf("Lobby %s was created and %s will become the first host", args.Name, c.ID)
+	log.Infof("Lobby %s was created and %s will become the first host", args.Name, c.ID)
 
 	// Set the client as the host
 	session.UpdateState(state, state.Lobbies[c.GameID][args.Name], c, 1)

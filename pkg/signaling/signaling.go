@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"slices"
 
-	"log"
 	"sync"
 	"time"
+
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/accounts/pkg/authorization"
 	account_structs "github.com/cloudlink-omega/accounts/pkg/structs"
@@ -40,7 +41,7 @@ func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth
 	}
 
 	if turnonly {
-		log.Print("TURN only mode enabled. Candidates that specify STUN will be ignored, and only TURN candidates will be relayed.")
+		log.Info("TURN only mode enabled. Candidates that specify STUN will be ignored, and only TURN candidates will be relayed.")
 	}
 
 	if db != nil {
@@ -60,7 +61,7 @@ func RunClient(state *Server, c *structs.Client) {
 	for {
 		clientMsg, err := message.Read(c)
 		if err != nil {
-			log.Printf("WARNING: Client %s read error: %s", c.ID, err.Error())
+			log.Errorf("Client %s read error: %s", c.ID, err.Error())
 			return
 		}
 		HandleMessage(state, c, clientMsg)
@@ -76,16 +77,16 @@ func CloseClient(state *Server, c *structs.Client) {
 // This checks if the incoming request's origin is allowed to Connect to the server.
 // The server will log if the origin is permitted or rejected.
 func (s *Server) AuthorizedOrigins(r *fasthttp.Request) bool {
-	log.Printf("Origin: %s, Host: %s", r.Header.Peek("Origin"), r.Host())
+	log.Debugf("Origin: %s, Host: %s", r.Header.Peek("Origin"), r.Host())
 
 	// Check if the origin is allowed
 	result := origin.IsAllowed(string(r.Header.Peek("Origin")), s.AuthorizedOriginsStorage)
 
 	// Logging
 	if result {
-		log.Print("Origin permitted to Connect")
+		log.Debug("Origin permitted to Connect")
 	} else {
-		log.Print("Origin was rejected during Connect")
+		log.Debug("Origin was rejected during Connect")
 	}
 
 	// TODO: cache the result to speed up future checks
@@ -145,12 +146,12 @@ func RegisterClient(state *Server, c *structs.Client) {
 	defer state.Lock.Unlock()
 	func(state *Server, c *structs.Client) {
 		if state.UninitializedPeers[c.GameID] == nil {
-			log.Printf("Game ID %s uninitialized peers storage has been created", c.GameID)
+			log.Infof("Game ID %s uninitialized peers storage has been created", c.GameID)
 			state.UninitializedPeers[c.GameID] = make([]*structs.Client, 0)
 		}
 
 		if state.GlobalPeerIDs[c.GameID] == nil {
-			log.Printf("Game ID %s global peer IDs storage has been created", c.GameID)
+			log.Infof("Game ID %s global peer IDs storage has been created", c.GameID)
 			state.GlobalPeerIDs[c.GameID] = make([]string, 0)
 		}
 
@@ -201,7 +202,7 @@ func (s *Server) Handler(Conn *websocket.Conn) {
 		client.ID = claims.ULID + "_" + Conn.Query("ugi")
 		client.Name = claims.Username
 		if slices.Contains(s.GlobalPeerIDs[Conn.Query("ugi")], client.ID) {
-			log.Printf("Game ID %s client with ID %s already exists", Conn.Query("ugi"), client.ID)
+			log.Infof("Game ID %s client with ID %s already exists", Conn.Query("ugi"), client.ID)
 			session.CloseWithViolationMessage(client, "session already in use for this game")
 			return
 		}

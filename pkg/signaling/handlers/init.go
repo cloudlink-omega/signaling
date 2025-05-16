@@ -2,7 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+
+	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/session"
@@ -48,7 +49,7 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 
 	// Create game storage if it doesn't exist
 	if state.Lobbies[c.GameID] == nil {
-		log.Printf("Game ID %s lobby storage has been created", c.GameID)
+		log.Debugf("Game ID %s lobby storage has been created", c.GameID)
 		state.Lobbies[c.GameID] = make(map[string]*structs.Lobby)
 	}
 
