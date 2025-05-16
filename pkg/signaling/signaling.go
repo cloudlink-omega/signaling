@@ -26,7 +26,7 @@ import (
 
 type Server structs.Server
 
-func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB) *Server {
+func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB, perform_upgrade bool) *Server {
 	s := &Server{
 		AuthorizedOriginsStorage: origin.CompilePatterns(allowedorigins),
 		TURNOnly:                 turnonly,
@@ -44,11 +44,13 @@ func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth
 	}
 
 	if db != nil {
-		s.DB.AutoMigrate(
-			&types.User{},
-			&types.Developer{},
-			&types.DeveloperGame{},
-		)
+		if perform_upgrade {
+			s.DB.AutoMigrate(
+				&types.User{},
+				&types.Developer{},
+				&types.DeveloperGame{},
+			)
+		}
 	}
 
 	return s

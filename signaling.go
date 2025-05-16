@@ -37,8 +37,16 @@ func New(
 	// Passthrough a database to the signaling server. If not provided, the server will run without authentication.
 	DB *gorm.DB,
 
+	// If true, the database will not be automatically migrated, and the caller is responsible for doing so.
+	defer_migrate ...bool,
+
 ) *SignalingServer {
-	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB)
+	var perform_upgrade bool
+	if len(defer_migrate) > 0 {
+		perform_upgrade = !defer_migrate[0]
+	}
+
+	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB, perform_upgrade)
 	srv := &SignalingServer{Server: s}
 
 	// Initialize app
