@@ -14,7 +14,7 @@ import (
 
 func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 
-	log.Debugf("$s $s $s", c.ID, c.GameID, wsMsg)
+	log.Debugf("$s $s $s", c.InstanceID, c.GameID, wsMsg)
 
 	if !c.Valid {
 		message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "unauthorized"})
@@ -50,7 +50,7 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 		RelayEnabled: args.EnableRelay,
 		Clients:      make([]*structs.Client, 0),
 	}
-	log.Infof("Lobby %s was created and %s will become the first host", args.Name, c.ID)
+	log.Infof("Lobby %s was created and %s will become the first host", args.Name, c.InstanceID)
 
 	// Set the client as the host
 	session.UpdateState(state, state.Lobbies[c.GameID][args.Name], c, 1)
@@ -58,9 +58,10 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 	// Just tell the client that they are the host
 	message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
-		UserID:    c.ID,
-		PublicKey: c.PublicKey,
-		Username:  c.Name,
+		UserID:     c.UserID,
+		InstanceID: c.InstanceID,
+		PublicKey:  c.PublicKey,
+		Username:   c.Name,
 	}})
 
 	// Tell other peers about the new lobby

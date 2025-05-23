@@ -32,20 +32,19 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 		if !c.TokenWasPresent {
 			c.Token = args.Token
 		}
-		if !session.ValidateToken(c.Token) {
+		if !session.ValidateToken(state, c.Token) {
 			session.CloseWithViolationMessage(c, "unauthorized")
 			return
+		} else {
+			claims := session.GetClaimsFromToken(state, c.Token)
+			c.Name = claims.Username
+			c.UserID = claims.ULID
+			c.AuthedWithCookie = true
 		}
 	}
 
-	// Require write lock to set valid
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
 	c.Valid = true
 	c.PublicKey = args.PublicKey
-	if !c.AuthedWithCookie {
-		c.Name = args.Username
-	}
 
 	// Create game storage if it doesn't exist
 	if state.Lobbies[c.GameID] == nil {
@@ -55,8 +54,8 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 
 	// Return INIT_OK
 	message.Send(c, structs.Packet{Opcode: "INIT_OK", Payload: structs.InitResponse{
-		UserID:   c.ID,
-		DevID:    "debug_id",
-		Username: c.Name,
+		InstanceID: c.InstanceID,
+		UserID:     c.UserID,
+		Username:   c.Name,
 	}})
 }

@@ -21,9 +21,10 @@ func Find_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) 
 	// Return info about the lobby
 	message.Send(c, structs.Packet{Opcode: "FIND_ACK", Payload: &structs.FindLobbyArgs{
 		Host: structs.NewPeer{
-			UserID:    lobby.Host.ID,
-			PublicKey: lobby.Host.PublicKey,
-			Username:  lobby.Host.Name,
+			UserID:     lobby.Host.UserID,
+			InstanceID: lobby.Host.InstanceID,
+			PublicKey:  lobby.Host.PublicKey,
+			Username:   lobby.Host.Name,
 		},
 		MaxPlayers:       lobby.MaxPlayers,
 		CurrentPlayers:   uint64(len(lobby.Clients)),

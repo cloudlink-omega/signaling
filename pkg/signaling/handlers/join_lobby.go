@@ -57,21 +57,23 @@ func Join_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) 
 
 	if lobby.Host != nil {
 		// Tell the peer about the current host
-		message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: lobby.Host.ID})
+		message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: lobby.Host.InstanceID})
 
 		// Tell the host and other peers about the new client
 		message.Send(lobby.Host, structs.Packet{Opcode: "NEW_PEER", Payload: structs.NewPeer{
-			UserID:    c.ID,
-			PublicKey: c.PublicKey,
-			Username:  c.Name,
+			UserID:     c.UserID,
+			InstanceID: c.InstanceID,
+			PublicKey:  c.PublicKey,
+			Username:   c.Name,
 		}})
 	}
 
 	// Tell existing members about the new peer
 	message.Broadcast(session.Without(lobby.Clients, c), structs.Packet{Opcode: "PEER_JOIN", Payload: structs.NewPeer{
-		UserID:    c.ID,
-		PublicKey: c.PublicKey,
-		Username:  c.Name,
+		UserID:     c.UserID,
+		InstanceID: c.InstanceID,
+		PublicKey:  c.PublicKey,
+		Username:   c.Name,
 	}})
 
 	// Tell the peer about the relay (if present)

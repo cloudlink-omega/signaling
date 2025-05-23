@@ -10,7 +10,8 @@ type Client struct {
 	Conn             *websocket.Conn
 	Lock             *sync.Mutex
 	TransmitLock     *sync.Mutex
-	ID               string
+	UserID           string
+	InstanceID       string
 	AuthedWithCookie bool
 	Token            string
 	TokenWasPresent  bool

@@ -61,7 +61,7 @@ func RunClient(state *Server, c *structs.Client) {
 	for {
 		clientMsg, err := message.Read(c)
 		if err != nil {
-			log.Errorf("Client %s read error: %s", c.ID, err.Error())
+			log.Errorf("Client %s read error: %s", c.InstanceID, err.Error())
 			return
 		}
 		HandleMessage(state, c, clientMsg)
@@ -70,7 +70,7 @@ func RunClient(state *Server, c *structs.Client) {
 
 func CloseClient(state *Server, c *structs.Client) {
 	session.UpdateState((*structs.Server)(state), nil, c, -1)
-	state.GlobalPeerIDs[c.GameID] = slices.Delete(state.GlobalPeerIDs[c.GameID], slices.Index(state.GlobalPeerIDs[c.GameID], c.ID), 1)
+	state.GlobalPeerIDs[c.GameID] = slices.Delete(state.GlobalPeerIDs[c.GameID], slices.Index(state.GlobalPeerIDs[c.GameID], c.InstanceID), 1)
 }
 
 // AuthorizedOrigins implements the CheckOrigin method of the websocket.Upgrader.
@@ -156,7 +156,7 @@ func RegisterClient(state *Server, c *structs.Client) {
 		}
 
 		state.UninitializedPeers[c.GameID] = append(state.UninitializedPeers[c.GameID], c)
-		state.GlobalPeerIDs[c.GameID] = append(state.GlobalPeerIDs[c.GameID], c.ID)
+		state.GlobalPeerIDs[c.GameID] = append(state.GlobalPeerIDs[c.GameID], c.InstanceID)
 	}(state, c)
 }
 
@@ -168,7 +168,7 @@ func RegisterClient(state *Server, c *structs.Client) {
 func (s *Server) Handler(Conn *websocket.Conn) {
 	client := &structs.Client{
 		Conn:            Conn,
-		ID:              ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader).String() + "_" + Conn.Query("ugi"),
+		InstanceID:      ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader).String() + "_" + Conn.Query("ugi"),
 		Token:           Conn.Query("token"),
 		TokenWasPresent: Conn.Query("token") != "",
 		Lock:            &sync.Mutex{},
@@ -199,10 +199,10 @@ func (s *Server) Handler(Conn *websocket.Conn) {
 	claims, ok := Conn.Locals("claims").(*account_structs.Claims)
 	if ok && claims != nil {
 		client.AuthedWithCookie = true
-		client.ID = claims.ULID + "_" + Conn.Query("ugi")
+		client.InstanceID = claims.ULID + "_" + Conn.Query("ugi")
 		client.Name = claims.Username
-		if slices.Contains(s.GlobalPeerIDs[Conn.Query("ugi")], client.ID) {
-			log.Infof("Game ID %s client with ID %s already exists", Conn.Query("ugi"), client.ID)
+		if slices.Contains(s.GlobalPeerIDs[Conn.Query("ugi")], client.InstanceID) {
+			log.Infof("Game ID %s client with ID %s already exists", Conn.Query("ugi"), client.InstanceID)
 			session.CloseWithViolationMessage(client, "session already in use for this game")
 			return
 		}

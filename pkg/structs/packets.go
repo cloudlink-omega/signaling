@@ -35,18 +35,17 @@ type JoinLobbyArgs struct {
 type InitArgs struct {
 	Token     string `json:"token"`
 	PublicKey string `json:"pubkey,omitempty"`
-	Username  string `json:"username"`
 }
 
 type InitResponse struct {
-	GameID   string `json:"game_id"`
-	UserID   string `json:"user_id"`
-	DevID    string `json:"dev_id"`
-	Username string `json:"username"`
+	InstanceID string `json:"instance_id"`
+	UserID     string `json:"user_id"`
+	Username   string `json:"username"`
 }
 
 type NewPeer struct {
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
-	PublicKey string `json:"pubkey,omitempty"`
+	InstanceID string `json:"instance_id"`
+	UserID     string `json:"user_id"`
+	Username   string `json:"username"`
+	PublicKey  string `json:"pubkey,omitempty"`
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2/log"
 
+	account_structs "github.com/cloudlink-omega/accounts/pkg/structs"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/structs"
 	"github.com/gofiber/contrib/websocket"
@@ -34,7 +35,7 @@ func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client
 }
 
 func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client, newstate int8, is_transitional ...bool) {
-	log.Debugf("%s %d -> %d\n", c.ID, c.State, newstate)
+	log.Debugf("%s %d -> %d\n", c.InstanceID, c.State, newstate)
 
 	// Add to new state with lock. Both locks MUST be acquired and released at the same time!
 	state.Lock.Lock()
@@ -45,7 +46,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 	}(c, state)
 	func(c *structs.Client, state *structs.Server) {
 
-		log.Debugf("Peer %s was in state %d and is now in state %d\n", c.ID, c.State, newstate)
+		log.Debugf("Peer %s was in state %d and is now in state %d\n", c.InstanceID, c.State, newstate)
 
 		if lobby == nil {
 			// Try to find the lobby given the peer's lobby
@@ -58,7 +59,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 		switch c.State {
 
 		case -1:
-			log.Warnf("WARNING: Peer", c.ID, "last state was -1")
+			log.Warnf("WARNING: Peer", c.InstanceID, "last state was -1")
 
 		// The client is uninitialized and is either being destroyed or joining a lobby
 		case 0:
@@ -73,15 +74,15 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 
 					// Pick the next host
 					newHost := lobby.Clients[0]
-					log.Debugf("Peer %s was in state %d and will become state 1\n", newHost.ID, newHost.State)
+					log.Debugf("Peer %s was in state %d and will become state 1\n", newHost.InstanceID, newHost.State)
 					newHost.State = 1
 					lobby.Host = newHost
 					lobby.Clients = Without(lobby.Clients, newHost)
 					message.Send(newHost, structs.Packet{Opcode: "TRANSITION", Payload: "host"})
 					message.Broadcast(lobby.Clients, structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
-						UserID:    newHost.ID,
-						PublicKey: newHost.PublicKey,
-						Username:  newHost.Name,
+						InstanceID: newHost.InstanceID,
+						PublicKey:  newHost.PublicKey,
+						Username:   newHost.Name,
 					}})
 
 				} else {
@@ -89,7 +90,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 				}
 
 				if lobby.Host == c && (newstate == -1 || newstate == 0) {
-					log.Debugf("Lobby %s host has been cleared since %s was the host\n", lobby.Name, c.ID)
+					log.Debugf("Lobby %s host has been cleared since %s was the host\n", lobby.Name, c.InstanceID)
 					lobby.Host = nil
 				}
 			}
@@ -126,7 +127,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 			if lobby != nil {
 
 				// Does nothing if there are no peers
-				message.Broadcast(Without(And(lobby.Clients, lobby.Host), c), structs.Packet{Opcode: "PEER_LEFT", Payload: c.ID})
+				message.Broadcast(Without(And(lobby.Clients, lobby.Host), c), structs.Packet{Opcode: "PEER_LEFT", Payload: c.InstanceID})
 			}
 
 		// Client is now uninitialized
@@ -147,7 +148,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 
 			// Move the old host to the lobby Clients
 			if oldHost != nil {
-				log.Debugf("Peer %s was in state %d and will become state 2\n", oldHost.ID, oldHost.State)
+				log.Debugf("Peer %s was in state %d and will become state 2\n", oldHost.InstanceID, oldHost.State)
 				oldHost.State = 2
 				lobby.Clients = And(lobby.Clients, oldHost)
 				message.Send(oldHost, structs.Packet{Opcode: "TRANSITION", Payload: "peer"})
@@ -194,9 +195,12 @@ func ShowStatus(state *structs.Server, lobby *structs.Lobby, c *structs.Client) 
 	}
 }
 
-func ValidateToken(token string) bool {
-	// TODO
-	return token == "let me in"
+func ValidateToken(state *structs.Server, token string) bool {
+	return state.Authorization.ValidFromToken(token)
+}
+
+func GetClaimsFromToken(state *structs.Server, token string) *account_structs.Claims {
+	return state.Authorization.GetClaimsFromToken(token)
 }
 
 func CloseWithViolationMessage(c *structs.Client, message string) {
@@ -220,7 +224,7 @@ func CloseWithWarningMessage(c *structs.Client, message string) {
 // Returns nil if no client with the given id is found.
 func Get(peers []*structs.Client, id string) *structs.Client {
 	for _, peer := range peers {
-		if peer.ID == id {
+		if peer.InstanceID == id {
 			return peer
 		}
 	}

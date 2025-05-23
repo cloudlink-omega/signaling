@@ -128,20 +128,21 @@ func Manage_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 			// Update the host's state to be a peer
 			message.Send(c, structs.Packet{Opcode: "TRANSITION", Payload: "peer"})
-			log.Debugf("Peer %s was in state %d and will become state 2\n", c.ID, c.State)
+			log.Debugf("Peer %s was in state %d and will become state 2\n", c.InstanceID, c.State)
 			c.State = 2
 			lobby.Clients = session.And(lobby.Clients, c)
 
 			// Update state
-			log.Debugf("Peer %s was in state %d and will become state 1\n", newHost.ID, newHost.State)
+			log.Debugf("Peer %s was in state %d and will become state 1\n", newHost.InstanceID, newHost.State)
 			newHost.State = 1
 			lobby.Host = newHost
 			lobby.Clients = session.Without(lobby.Clients, newHost)
 			message.Send(newHost, structs.Packet{Opcode: "TRANSITION", Payload: "host"})
 			message.Broadcast(session.And(lobby.Clients, newHost), structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
-				UserID:    newHost.ID,
-				PublicKey: newHost.PublicKey,
-				Username:  newHost.Name,
+				UserID:     newHost.UserID,
+				InstanceID: newHost.InstanceID,
+				PublicKey:  newHost.PublicKey,
+				Username:   newHost.Name,
 			}})
 		}(c, lobby)
 
