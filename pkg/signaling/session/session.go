@@ -80,6 +80,7 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 					lobby.Clients = Without(lobby.Clients, newHost)
 					message.Send(newHost, structs.Packet{Opcode: "TRANSITION", Payload: "host"})
 					message.Broadcast(lobby.Clients, structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
+						UserID:     newHost.UserID,
 						InstanceID: newHost.InstanceID,
 						PublicKey:  newHost.PublicKey,
 						Username:   newHost.Name,
