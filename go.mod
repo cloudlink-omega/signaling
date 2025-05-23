@@ -3,8 +3,8 @@ module github.com/cloudlink-omega/signaling
 go 1.24.1
 
 replace (
-	github.com/cloudlink-omega/accounts => ..\accounts
-	github.com/cloudlink-omega/storage => ..\storage
+	github.com/cloudlink-omega/accounts => ../accounts
+	github.com/cloudlink-omega/storage => ../storage
 )
 
 require (
