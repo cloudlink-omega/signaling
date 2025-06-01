@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/cloudlink-omega/accounts/pkg/authorization"
+	backend "github.com/cloudlink-omega/backend/pkg/database"
 	"gorm.io/gorm"
 )
 
@@ -19,4 +20,5 @@ type Server struct {
 	UninitializedPeers       map[string][]*Client
 	DB                       *gorm.DB
 	Authorization            *authorization.Auth
+	GamesDB                  *backend.Database
 }

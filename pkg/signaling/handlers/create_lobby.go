@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/log"
 
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
-	"github.com/cloudlink-omega/signaling/pkg/signaling/relay"
+	//"github.com/cloudlink-omega/signaling/pkg/signaling/relay"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/session"
 	"github.com/cloudlink-omega/signaling/pkg/structs"
 )
@@ -42,13 +42,13 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 	// Create the lobby
 	state.Lobbies[c.GameID][args.Name] = &structs.Lobby{
-		Name:         args.Name,
-		Lock:         &sync.RWMutex{},
-		Password:     args.Password,
-		MaxPlayers:   args.MaxPlayers,
-		Locked:       args.Locked,
-		RelayEnabled: args.EnableRelay,
-		Clients:      make([]*structs.Client, 0),
+		Name:       args.Name,
+		Lock:       &sync.RWMutex{},
+		Password:   args.Password,
+		MaxPlayers: args.MaxPlayers,
+		Locked:     args.Locked,
+		// RelayEnabled: args.EnableRelay,
+		Clients: make([]*structs.Client, 0),
 	}
 	log.Infof("Lobby %s was created and %s will become the first host", args.Name, c.InstanceID)
 
@@ -69,11 +69,12 @@ func Create_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet
 
 	// Create a relay
 	if args.EnableRelay {
-		relay, err := relay.SpawnRelay(c, (*structs.Server)(state), args.Name)
+		/* relay, err := relay.SpawnRelay(c, (*structs.Server)(state), args.Name)
 		if err != nil {
 			return
 		}
 		state.Lobbies[c.GameID][args.Name].RelayKey = relay.Id
-		message.Send(c, structs.Packet{Opcode: "RELAY", Payload: relay.Id})
+		message.Send(c, structs.Packet{Opcode: "RELAY", Payload: relay.Id}) */
+		message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "Relays coming soon..."})
 	}
 }

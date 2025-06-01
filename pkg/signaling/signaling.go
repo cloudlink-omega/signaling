@@ -11,6 +11,7 @@ import (
 
 	"github.com/cloudlink-omega/accounts/pkg/authorization"
 	account_structs "github.com/cloudlink-omega/accounts/pkg/structs"
+	backend "github.com/cloudlink-omega/backend/pkg/database"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/handlers"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/message"
 	"github.com/cloudlink-omega/signaling/pkg/signaling/origin"
@@ -27,7 +28,7 @@ import (
 
 type Server structs.Server
 
-func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB, perform_upgrade bool) *Server {
+func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB, perform_upgrade bool, gamedb *backend.Database) *Server {
 	s := &Server{
 		AuthorizedOriginsStorage: origin.CompilePatterns(allowedorigins),
 		TURNOnly:                 turnonly,
@@ -38,6 +39,7 @@ func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth
 		UninitializedPeers:       make(map[string][]*structs.Client),
 		Authorization:            auth,
 		DB:                       db,
+		GamesDB:                  gamedb,
 	}
 
 	if turnonly {
@@ -184,13 +186,9 @@ func (s *Server) Handler(Conn *websocket.Conn) {
 
 	// Check if UGI is valid
 	if s.DB != nil {
-		err := s.DB.Where("id = ?", Conn.Query("ugi")).First(&types.DeveloperGame{}).Error
-		if err == gorm.ErrRecordNotFound {
+		client.Game = s.GamesDB.GetGame(Conn.Query("ugi"))
+		if client.Game == nil {
 			session.CloseWithViolationMessage(client, "Invalid Game ID (UGI not found)")
-			return
-		}
-		if err != nil {
-			session.CloseWithViolationMessage(client, err.Error())
 			return
 		}
 	}

@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cloudlink-omega/accounts/pkg/authorization"
+	backend "github.com/cloudlink-omega/backend/pkg/database"
 	srv "github.com/cloudlink-omega/signaling/pkg/signaling"
 	"github.com/gofiber/fiber/v2"
 )
@@ -37,6 +38,9 @@ func New(
 	// Passthrough a database to the signaling server. If not provided, the server will run without authentication.
 	DB *gorm.DB,
 
+	// Passthrough backend game DB
+	GamesDB *backend.Database,
+
 	// If true, the database will not be automatically migrated, and the caller is responsible for doing so.
 	defer_migrate ...bool,
 
@@ -46,7 +50,7 @@ func New(
 		perform_upgrade = !defer_migrate[0]
 	}
 
-	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB, perform_upgrade)
+	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB, perform_upgrade, GamesDB)
 	srv := &SignalingServer{Server: s}
 
 	// Initialize app

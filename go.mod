@@ -4,11 +4,13 @@ go 1.24.1
 
 replace (
 	github.com/cloudlink-omega/accounts => ../accounts
+	github.com/cloudlink-omega/backend => ../backend
 	github.com/cloudlink-omega/storage => ../storage
 )
 
 require (
 	github.com/cloudlink-omega/accounts v0.0.0-00010101000000-000000000000
+	github.com/cloudlink-omega/backend v0.0.0-00010101000000-000000000000
 	github.com/cloudlink-omega/storage v0.0.0-00010101000000-000000000000
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/contrib/websocket v1.3.4

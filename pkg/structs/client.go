@@ -3,6 +3,7 @@ package structs
 import (
 	"sync"
 
+	"github.com/cloudlink-omega/storage/pkg/types"
 	"github.com/gofiber/contrib/websocket"
 )
 
@@ -22,4 +23,5 @@ type Client struct {
 	PublicKey        string
 	Name             string
 	GameID           string
+	Game             *types.DeveloperGame
 }
