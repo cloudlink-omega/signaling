@@ -13,7 +13,6 @@ import (
 )
 
 func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
-	log.Debug("Destroy Lobby was called!")
 	if lobby != nil && c.LastState == 1 && lobby.Host == nil && len(lobby.Clients) == 0 {
 		if lobby.RelayEnabled {
 			state.Relays[c.GameID][lobby.Name].Close <- true
@@ -24,8 +23,6 @@ func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client
 		delete(state.Lobbies[c.GameID], lobby.Name)
 		log.Infof("Lobby %s has been destroyed", lobby.Name)
 		message.Broadcast(state.UninitializedPeers[c.GameID], structs.Packet{Opcode: "LOBBY_CLOSED", Payload: lobby.Name})
-	} else {
-		log.Warn("Destroy Lobby had not effect!")
 	}
 }
 
@@ -166,12 +163,11 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 		}
 
 		// Perform cleanup duties
-		TriggerCleanup(state, lobby.Name, c)
-		ShowStatus(state, lobby.Name, c)
+		TriggerCleanup(state, lobby, c)
 	}(c, state)
 }
 
-func TriggerCleanup(state *structs.Server, lobby_id string, c *structs.Client) {
+func TriggerCleanup(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
 	if len(state.UninitializedPeers[c.GameID]) == 0 &&
 		len(state.Lobbies[c.GameID]) == 0 &&
 		len(state.Relays[c.GameID]) == 0 {
@@ -180,18 +176,6 @@ func TriggerCleanup(state *structs.Server, lobby_id string, c *structs.Client) {
 		delete(state.UninitializedPeers, c.GameID)
 		delete(state.Relays, c.GameID)
 		log.Infof("Game ID %s has been destroyed", c.GameID)
-	}
-}
-
-func ShowStatus(state *structs.Server, lobby_id string, c *structs.Client) {
-	if state.Lobbies[c.GameID] != nil {
-		log.Debugf("Game ID %s has %d lobbies", c.GameID, len(state.Lobbies[c.GameID]))
-		log.Debugf("Game ID %s has %d uninitialized peers", c.GameID, len(state.UninitializedPeers[c.GameID]))
-		log.Debugf("Game ID %s has %d relays", c.GameID, len(state.Relays[c.GameID]))
-
-		if lobby := state.Lobbies[c.GameID][lobby_id]; lobby != nil {
-			log.Debugf("Game %s lobby %s has %d clients", c.GameID, lobby.Name, len(state.Lobbies[c.GameID][lobby.Name].Clients))
-		}
 	}
 }
 

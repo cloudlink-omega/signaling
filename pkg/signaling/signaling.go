@@ -72,7 +72,9 @@ func RunClient(state *Server, c *structs.Client) {
 
 func CloseClient(state *Server, c *structs.Client) {
 	session.UpdateState((*structs.Server)(state), nil, c, -1)
-	state.GlobalPeerIDs[c.GameID] = slices.Delete(state.GlobalPeerIDs[c.GameID], slices.Index(state.GlobalPeerIDs[c.GameID], c.InstanceID), 1)
+	if game := state.GlobalPeerIDs[c.GameID]; game != nil {
+		state.GlobalPeerIDs[c.GameID] = slices.Delete(state.GlobalPeerIDs[c.GameID], slices.Index(game, c.InstanceID), 1)
+	}
 }
 
 // AuthorizedOrigins implements the CheckOrigin method of the websocket.Upgrader.
