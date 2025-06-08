@@ -13,8 +13,7 @@ import (
 )
 
 func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
-	log.Debugf("Destroy Lobby was called!")
-
+	log.Debug("Destroy Lobby was called!")
 	if lobby != nil && c.LastState == 1 && lobby.Host == nil && len(lobby.Clients) == 0 {
 		if lobby.RelayEnabled {
 			state.Relays[c.GameID][lobby.Name].Close <- true
@@ -22,13 +21,9 @@ func DestroyLobby(state *structs.Server, lobby *structs.Lobby, c *structs.Client
 			log.Infof("Game ID %s lobby %s relay has been destroyed", c.GameID, lobby.Name)
 			delete(state.Relays[c.GameID], lobby.Name)
 		}
-
 		delete(state.Lobbies[c.GameID], lobby.Name)
 		log.Infof("Lobby %s has been destroyed", lobby.Name)
-
 		message.Broadcast(state.UninitializedPeers[c.GameID], structs.Packet{Opcode: "LOBBY_CLOSED", Payload: lobby.Name})
-
-		ShowStatus(state, lobby, c)
 	} else {
 		log.Warn("Destroy Lobby had not effect!")
 	}
@@ -129,6 +124,11 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 
 				// Does nothing if there are no peers
 				message.Broadcast(Without(And(lobby.Clients, lobby.Host), c), structs.Packet{Opcode: "PEER_LEFT", Payload: c.InstanceID})
+
+				// Does nothing if the lobby state isn't ready to be deleted
+				if c.LastState == 1 {
+					DestroyLobby(state, lobby, c)
+				}
 			}
 
 		// Client is now uninitialized
@@ -166,33 +166,32 @@ func UpdateState(state *structs.Server, lobby *structs.Lobby, c *structs.Client,
 		}
 
 		// Perform cleanup duties
-		TriggerCleanup(state, lobby, c)
+		TriggerCleanup(state, lobby.Name, c)
+		ShowStatus(state, lobby.Name, c)
 	}(c, state)
 }
 
-func TriggerCleanup(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
-	ShowStatus(state, lobby, c)
+func TriggerCleanup(state *structs.Server, lobby_id string, c *structs.Client) {
+	if len(state.UninitializedPeers[c.GameID]) == 0 &&
+		len(state.Lobbies[c.GameID]) == 0 &&
+		len(state.Relays[c.GameID]) == 0 {
 
-	if (lobby != nil) &&
-		(len(state.UninitializedPeers[c.GameID]) == 0) &&
-		(len(state.Lobbies[c.GameID]) == 0) &&
-		(len(state.Relays[c.GameID]) == 0) {
-
-		log.Infof("All Game ID %s storage has been destroyed due the host being nil, having no lobbies, relays, or uninitialized peers", c.GameID)
 		delete(state.Lobbies, c.GameID)
 		delete(state.UninitializedPeers, c.GameID)
 		delete(state.Relays, c.GameID)
-
-		ShowStatus(state, lobby, c)
+		log.Infof("Game ID %s has been destroyed", c.GameID)
 	}
 }
 
-func ShowStatus(state *structs.Server, lobby *structs.Lobby, c *structs.Client) {
-	log.Debugf("Game ID %s has %d lobbies", c.GameID, len(state.Lobbies[c.GameID]))
-	log.Debugf("Game ID %s has %d uninitialized peers", c.GameID, len(state.UninitializedPeers[c.GameID]))
-	log.Debugf("Game ID %s has %d relays", c.GameID, len(state.Relays[c.GameID]))
-	if lobby != nil {
-		log.Debugf("Game %s lobby %s has %d clients", c.GameID, lobby.Name, len(state.Lobbies[c.GameID][lobby.Name].Clients))
+func ShowStatus(state *structs.Server, lobby_id string, c *structs.Client) {
+	if state.Lobbies[c.GameID] != nil {
+		log.Debugf("Game ID %s has %d lobbies", c.GameID, len(state.Lobbies[c.GameID]))
+		log.Debugf("Game ID %s has %d uninitialized peers", c.GameID, len(state.UninitializedPeers[c.GameID]))
+		log.Debugf("Game ID %s has %d relays", c.GameID, len(state.Relays[c.GameID]))
+
+		if lobby := state.Lobbies[c.GameID][lobby_id]; lobby != nil {
+			log.Debugf("Game %s lobby %s has %d clients", c.GameID, lobby.Name, len(state.Lobbies[c.GameID][lobby.Name].Clients))
+		}
 	}
 }
 
