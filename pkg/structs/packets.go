@@ -33,6 +33,7 @@ type JoinLobbyArgs struct {
 }
 
 type InitArgs struct {
+	Username  string `json:"username"`
 	Token     string `json:"token"`
 	PublicKey string `json:"pubkey,omitempty"`
 }

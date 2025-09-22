@@ -29,59 +29,65 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 		return
 	}
 
-	if !c.AuthedWithCookie {
-		if !c.TokenWasPresent {
-			c.Token = args.Token
+	if state.BypassDB {
+		c.Name = args.Username
+	}
+
+	if !state.BypassDB {
+		if !c.AuthedWithCookie {
+			if !c.TokenWasPresent {
+				c.Token = args.Token
+			}
+			if !session.ValidateToken(state, c.Token) {
+				session.CloseWithViolationMessage(c, "unauthorized")
+				return
+			} else {
+				claims := session.GetClaimsFromToken(state, c.Token)
+				c.Name = claims.Username
+				c.UserID = claims.ULID
+				c.AuthedWithCookie = true
+			}
 		}
-		if !session.ValidateToken(state, c.Token) {
-			session.CloseWithViolationMessage(c, "unauthorized")
-			return
+
+		// Check if they are a developer of the game
+		var found bool
+		for _, dev := range c.Game.Developer.DeveloperMembers {
+			if dev.UserID == c.UserID {
+				found = true
+				break
+			}
+		}
+
+		if found {
+
+			// Warn the member if the game has not yet been approved
+			if !c.Game.Developer.State.Read(constants.DEVELOPER_IS_VERIFIED) {
+				message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "The developer profile for this game has not yet been approved by an administrator. Please wait for approval."})
+			}
+
+			// Warn the member if the game has not yet been approved
+			if !c.Game.State.Read(constants.GAME_IS_VERIFIED) {
+				message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "This game has not yet been approved by an administrator. Please wait for approval."})
+			}
+
+			// Warn the member if the game isn't active
+			if !c.Game.State.Read(constants.GAME_IS_ACTIVE) {
+				message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "This game is not marked as active. Players will be unable to join."})
+			}
+
 		} else {
-			claims := session.GetClaimsFromToken(state, c.Token)
-			c.Name = claims.Username
-			c.UserID = claims.ULID
-			c.AuthedWithCookie = true
-		}
-	}
 
-	// Check if they are a developer of the game
-	var found bool
-	for _, dev := range c.Game.Developer.DeveloperMembers {
-		if dev.UserID == c.UserID {
-			found = true
-			break
-		}
-	}
+			// Kick the player from the game if it's not been approved
+			if !c.Game.State.Read(constants.GAME_IS_VERIFIED) {
+				session.CloseWithViolationMessage(c, "This game has not yet been approved by an administrator.")
+				return
+			}
 
-	if found {
-
-		// Warn the member if the game has not yet been approved
-		if !c.Game.Developer.State.Read(constants.DEVELOPER_IS_VERIFIED) {
-			message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "The developer profile for this game has not yet been approved by an administrator. Please wait for approval."})
-		}
-
-		// Warn the member if the game has not yet been approved
-		if !c.Game.State.Read(constants.GAME_IS_VERIFIED) {
-			message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "This game has not yet been approved by an administrator. Please wait for approval."})
-		}
-
-		// Warn the member if the game isn't active
-		if !c.Game.State.Read(constants.GAME_IS_ACTIVE) {
-			message.Send(c, structs.Packet{Opcode: "WARNING", Payload: "This game is not marked as active. Players will be unable to join."})
-		}
-
-	} else {
-
-		// Kick the player from the game if it's not been approved
-		if !c.Game.State.Read(constants.GAME_IS_VERIFIED) {
-			session.CloseWithViolationMessage(c, "This game has not yet been approved by an administrator.")
-			return
-		}
-
-		// Kick the player if the game isn't active
-		if !c.Game.State.Read(constants.GAME_IS_ACTIVE) {
-			session.CloseWithViolationMessage(c, "This game is not active.")
-			return
+			// Kick the player if the game isn't active
+			if !c.Game.State.Read(constants.GAME_IS_ACTIVE) {
+				session.CloseWithViolationMessage(c, "This game is not active.")
+				return
+			}
 		}
 	}
 

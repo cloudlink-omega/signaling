@@ -41,7 +41,10 @@ func New(
 	// Passthrough backend game DB
 	GamesDB *backend.Database,
 
-	// If true, the database will not be automatically migrated, and the caller is responsible for doing so.
+	// If true, the server will run without authentication and accepts any UGI blindly.
+	bypass_db bool,
+
+	// If true, the database will not be automatically migrated, and the caller is responsSSible for doing so.
 	defer_migrate ...bool,
 
 ) *SignalingServer {
@@ -50,7 +53,7 @@ func New(
 		perform_upgrade = !defer_migrate[0]
 	}
 
-	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB, perform_upgrade, GamesDB)
+	s := srv.Initialize(Authorized_Origins, TURN_Only, Auth, DB, perform_upgrade, GamesDB, bypass_db)
 	srv := &SignalingServer{Server: s}
 
 	// Initialize app

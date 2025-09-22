@@ -21,4 +21,5 @@ type Server struct {
 	DB                       *gorm.DB
 	Authorization            *authorization.Auth
 	GamesDB                  *backend.Database
+	BypassDB                 bool
 }

@@ -28,7 +28,7 @@ import (
 
 type Server structs.Server
 
-func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB, perform_upgrade bool, gamedb *backend.Database) *Server {
+func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth, db *gorm.DB, perform_upgrade bool, gamedb *backend.Database, bypass_db bool) *Server {
 	s := &Server{
 		AuthorizedOriginsStorage: origin.CompilePatterns(allowedorigins),
 		TURNOnly:                 turnonly,
@@ -40,13 +40,18 @@ func Initialize(allowedorigins []string, turnonly bool, auth *authorization.Auth
 		Authorization:            auth,
 		DB:                       db,
 		GamesDB:                  gamedb,
+		BypassDB:                 bypass_db,
+	}
+
+	if bypass_db {
+		log.Info("Signaling server is running in authless mode.")
 	}
 
 	if turnonly {
 		log.Info("TURN only mode enabled. Candidates that specify STUN will be ignored, and only TURN candidates will be relayed.")
 	}
 
-	if db != nil {
+	if !bypass_db && db != nil {
 		if perform_upgrade {
 			s.DB.AutoMigrate(
 				&types.User{},
@@ -187,7 +192,7 @@ func (s *Server) Handler(Conn *websocket.Conn) {
 	}
 
 	// Check if UGI is valid
-	if s.DB != nil {
+	if !s.BypassDB && s.DB != nil {
 		client.Game = s.GamesDB.GetGame(Conn.Query("ugi"))
 		if client.Game == nil {
 			session.CloseWithViolationMessage(client, "Invalid Game ID (UGI not found)")
