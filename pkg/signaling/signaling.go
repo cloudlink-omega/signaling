@@ -203,6 +203,9 @@ func (s *Server) Handler(Conn *websocket.Conn) {
 	// Try to authorize the session
 	claims, ok := Conn.Locals("claims").(*account_structs.Claims)
 	if ok && claims != nil {
+		if claims.IsGuest {
+			log.Info("Guest client connected")
+		}
 		client.AuthedWithCookie = true
 		client.InstanceID = claims.ULID + "_" + Conn.Query("ugi")
 		client.Name = claims.Username

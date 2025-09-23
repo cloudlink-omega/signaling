@@ -187,6 +187,19 @@ func GetClaimsFromToken(state *structs.Server, token string) *account_structs.Cl
 	return state.Authorization.GetClaimsFromToken(token)
 }
 
+func VerifySession(state *structs.Server, claims *account_structs.Claims) bool {
+
+	if claims.IsGuest {
+		log.Debug("Guest session detected")
+		guest, err := state.Authorization.DB.GetGuestSession(claims.SessionID)
+		return guest != nil && err == nil
+	} else {
+		log.Debug("Normal session detected")
+		user, err := state.Authorization.DB.GetSession(claims.SessionID)
+		return user != nil && err == nil
+	}
+}
+
 func CloseWithViolationMessage(c *structs.Client, message string) {
 	packet := structs.Packet{Opcode: "VIOLATION", Payload: message}
 	log.Debug(packet)

@@ -46,6 +46,12 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 				c.Name = claims.Username
 				c.UserID = claims.ULID
 				c.AuthedWithCookie = true
+
+				// Verify the status of the session
+				if !session.VerifySession(state, claims) {
+					session.CloseWithViolationMessage(c, "session expired or revoked")
+					return
+				}
 			}
 		}
 
