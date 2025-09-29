@@ -56,8 +56,14 @@ func Join_Lobby(state *structs.Server, c *structs.Client, wsMsg structs.Packet) 
 	message.Send(c, structs.Packet{Opcode: "JOIN_ACK", Payload: "ok"})
 
 	if lobby.Host != nil {
+
 		// Tell the peer about the current host
-		message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: lobby.Host.InstanceID})
+		message.Send(c, structs.Packet{Opcode: "NEW_HOST", Payload: structs.NewPeer{
+			UserID:     lobby.Host.UserID,
+			InstanceID: lobby.Host.InstanceID,
+			PublicKey:  lobby.Host.PublicKey,
+			Username:   lobby.Host.Name,
+		}})
 
 		// Tell the host and other peers about the new client
 		message.Send(lobby.Host, structs.Packet{Opcode: "NEW_PEER", Payload: structs.NewPeer{
