@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/gofiber/fiber/v2/log"
 
@@ -30,7 +31,24 @@ func Init(state *structs.Server, c *structs.Client, wsMsg structs.Packet) {
 	}
 
 	if state.BypassDB {
-		c.Name = args.Username
+
+		// Try to derive username from token
+		if !c.TokenWasPresent {
+			c.Token = args.Token
+
+			claims := session.GetClaimsFromToken(state, c.Token)
+			c.UserID = claims.ULID
+			c.Name = claims.Username
+		}
+
+		if c.Name == "" {
+			c.Name = args.Username
+		}
+
+		if c.UserID == "" {
+			// Derive a UserID based on the current instance ID but ONLY the first part, not the UGI
+			c.UserID = "GUEST_" + c.InstanceID[:strings.Index(c.InstanceID, "_")]
+		}
 	}
 
 	if !state.BypassDB {
